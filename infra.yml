@@ -1,0 +1,63 @@
+trigger: none
+pr:  none
+
+pool:
+  vmImage: 'ubuntu-latest'
+variables:
+- name: serviceconnection
+  value: AzureDevOpsServiceConnection-Dev
+
+# Provide information for terraform's backend
+- name: TerraformBackend.ResourceGroup
+  value: atlas-videoaudit-poc-rg
+- name: TerraformBackend.StorageAccount
+  value: citationterraform
+- name: TerraformBackend.ContainerName
+  value: terraformstate-dev
+- name: TerraformBackend.key
+  value: terraform-hsdev.tfstate
+- name: WorkingDir
+  value: 'Terraform/Atlas/HSDev'
+  
+
+# Go through this variable group to change the behaviour of terraform modules
+- group: 'terraformControl - HSDev'
+
+
+stages:
+- stage: 'Init'
+  displayName: "Terraform Plan & Validation"
+  jobs:
+  - job:
+    displayName: Init
+    steps:
+    - template: '../../ATLAS/YAMLTemplate/terraformInit.yml'
+      parameters:
+        subscription: $(serviceconnection)
+        workingDir: '$(System.DefaultWorkingDirectory)/Terraform/Atlas/HSDev'
+        backendType: azurerm
+        backendAzureRmResourceGroupName: '$(TerraformBackend.ResourceGroup)'
+        backendAzureRmStorageAccountName: '$(TerraformBackend.StorageAccount)'
+        backendAzureRmContainerName: '$(TerraformBackend.ContainerName)'
+        backendAzureRmKey: '$(TerraformBackend.key)'
+    - script: ls -ltr
+- stage: 'Apply'
+  displayName: "Deploy or modify resources with terraform"
+  jobs:
+  - job:
+    displayName: Init
+  - deployment: apply
+    environment: apply
+    strategy:
+     runOnce:
+        deploy:
+           steps:
+            - template: '../../ATLAS/YAMLTemplate/terraformApply.yml'
+              parameters:
+                subscription: $(serviceconnection)
+                workingDir: '$(System.DefaultWorkingDirectory)/Atlas/HSDev'
+                backendType: azurerm
+                backendAzureRmResourceGroupName: '$(TerraformBackend.ResourceGroup)'
+                backendAzureRmStorageAccountName: '$(TerraformBackend.StorageAccount)'
+                backendAzureRmContainerName: '$(TerraformBackend.ContainerName)'
+                backendAzureRmKey: '$(TerraformBackend.key)'
